@@ -8,7 +8,7 @@ __pycache__/
 *.so
 .Python
 
-# data abse
+# data base
 db.sqlite3
 
 # Django
