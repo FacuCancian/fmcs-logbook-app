@@ -1,0 +1,23 @@
+venv/
+env/
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+
+# data abse
+db.sqlite3
+
+# Django
+*.log
+*.pot
+*.pyc
+local_settings.py
+
+# IDE
+.idea/
+.vscode/
+*.swp
