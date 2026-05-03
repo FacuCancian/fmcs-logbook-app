@@ -4,20 +4,17 @@ from .serializers import DriverSerializer, LogDaySerializer, DutySegmentSerializ
 
 
 class DriverViewSet(viewsets.ModelViewSet):
-    """API endpoint for drivers"""
     queryset = Driver.objects.all()
     serializer_class = DriverSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
 
 class LogDayViewSet(viewsets.ModelViewSet):
-    """API endpoint for log days"""
     queryset = LogDay.objects.all()
     serializer_class = LogDaySerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
     def get_queryset(self):
-        """Filter logs by driver if driver_id is provided"""
         queryset = super().get_queryset()
         driver_id = self.request.query_params.get('driver_id', None)
         if driver_id:
@@ -26,13 +23,11 @@ class LogDayViewSet(viewsets.ModelViewSet):
 
 
 class DutySegmentViewSet(viewsets.ModelViewSet):
-    """API endpoint for duty segments"""
     queryset = DutySegment.objects.all()
     serializer_class = DutySegmentSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
     def get_queryset(self):
-        """Filter segments by log_day if log_day_id is provided"""
         queryset = super().get_queryset()
         log_day_id = self.request.query_params.get('log_day_id', None)
         if log_day_id:
