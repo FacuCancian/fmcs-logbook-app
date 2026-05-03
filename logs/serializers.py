@@ -59,17 +59,14 @@ class DutySegmentSerializer(serializers.ModelSerializer):
         if self.instance:
             existing_segments = existing_segments.exclude(id=self.instance.id)
 
-        # RULE 1: 11-HOUR DRIVING LIMIT
-
         if status == 'D':
+            new_duration = (end_time - start_time).total_seconds() / 3600
 
+            # RULE 1: 11-HOUR DRIVING LIMIT
             current_driving = sum(
                 seg.duration_hours for seg in existing_segments if seg.status == 'D'
             )
-            # Calculate new segment duration
-            new_duration = (end_time - start_time).total_seconds() / 3600
 
-            # Check if exceeds 11 hours
             if current_driving + new_duration > 11:
                 remaining = 11 - current_driving
                 raise serializers.ValidationError(
@@ -78,63 +75,94 @@ class DutySegmentSerializer(serializers.ModelSerializer):
                     f"Only {remaining:.1f} hours remaining."
                 )
 
+            # RULE 2: 14-HOUR DRIVING WINDOW
+            temp_segments = []
+            for seg in existing_segments:
+                temp_segments.append({
+                    'start_time': seg.start_time,
+                    'end_time': seg.end_time,
+                    'status': seg.status,
+                })
 
-        # RULE 2: 14-HOUR DRIVING WINDOW
+            temp_segments.append({
+                'start_time': start_time,
+                'end_time': end_time,
+                'status': status,
+            })
 
-        if status == 'D':
-            all_segments = list(existing_segments) + [self.instance] if self.instance else list(existing_segments)
+            temp_segments.sort(key=lambda x: x['start_time'])
 
-            temp_segments = list(existing_segments)
-            if self.instance:
-
-                temp_segments = [s for s in temp_segments if s.id != self.instance.id]
-            temp_segments.append(data)
-
-            # Sort by start time
-            temp_segments.sort(key=lambda x: x.get('start_time') if hasattr(x, 'get') else x.start_time)
-
-            # Find first work segment (status not OFF or SB)
-            first_work = None
+            first_work_start = None
             for seg in temp_segments:
-                seg_status = seg.get('status') if hasattr(seg, 'get') else seg.status
-                if seg_status in ['ON', 'D']:
-                    first_work = seg
+                if seg['status'] in ['ON', 'D']:
+                    first_work_start = seg['start_time']
                     break
 
-            if first_work:
-                # Get start time of first work
-                first_work_start = first_work.get('start_time') if hasattr(first_work, 'get') else first_work.start_time
+            if first_work_start:
                 window_end = first_work_start + timedelta(hours=14)
-
-                # Check if this driving segment ends after window
                 if end_time > window_end:
                     raise serializers.ValidationError(
                         f"14-hour driving window ends at {window_end.strftime('%H:%M')}. "
                         f"Cannot drive after this time."
                     )
 
-        # RULE 3: Validate no midnight crossing
+            # RULE 3: 30-MINUTE REST BREAK
+            temp_segments = []
+            for seg in existing_segments:
+                temp_segments.append({
+                    'start_time': seg.start_time,
+                    'end_time': seg.end_time,
+                    'status': seg.status,
+                    'duration': seg.duration_hours
+                })
 
+            temp_segments.append({
+                'start_time': start_time,
+                'end_time': end_time,
+                'status': status,
+                'duration': new_duration
+            })
+
+            temp_segments.sort(key=lambda x: x['start_time'])
+
+            cumulative_driving = 0
+
+            for seg in temp_segments:
+                if seg['status'] == 'D':
+                    if cumulative_driving >= 8:
+                        raise serializers.ValidationError(
+                            "30-minute rest break required. "
+                            "You have driven 8 cumulative hours without a 30-minute break. "
+                            "Take 30 consecutive minutes off duty or sleeper berth before driving again."
+                        )
+                    cumulative_driving += seg['duration']
+                elif seg['status'] in ['OFF', 'SB'] and seg['duration'] >= 0.5:
+                    cumulative_driving = 0
+
+            if cumulative_driving >= 8:
+                raise serializers.ValidationError(
+                    "30-minute rest break required. "
+                    "You must take a 30-minute break after 8 cumulative driving hours."
+                )
+
+        # RULE 4: END TIME > START TIME
+        if end_time <= start_time:
+            raise serializers.ValidationError(
+                "End time must be after start time."
+            )
+
+        # RULE 5: NO MIDNIGHT CROSSING
         if start_time.date() != end_time.date():
             raise serializers.ValidationError(
                 "Activity cannot cross midnight. Please split into two segments."
             )
 
 
+        # RULE 6: weekly
 
-        # RULE 3.5: 60/70-HOUR WEEKLY ON-DUTY LIMIT
-        # Calculate total on-duty hours in the last 7 or 8 days
-        # On-duty = Driving + On-duty (not driving) -> statuses 'D' and 'ON'
-        # Get the driver from the log_day
+        driver = log_day.driver
         new_duration = (end_time - start_time).total_seconds() / 3600
-               self._validate_weekly_limit(driver, log_day, start_time.date(), status, new_duration)
-
-        # RULE 4: Validate end_time > start_time
-
-        if end_time <= start_time:
-            raise serializers.ValidationError(
-                "End time must be after start time."
-            )
+        self._validate_weekly_limit(driver, log_day, start_time.date(), status, new_duration)
 
         return data
     def _validate_weekly_limit(self, driver, log_day, current_date, status, duration):

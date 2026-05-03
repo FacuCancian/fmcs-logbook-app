@@ -20,7 +20,6 @@ class Driver(models.Model):
     def __str__(self):
         return f"{self.user.get_full_name()} ({self.driver_number})"
 
-
 class LogDay(models.Model):
     "Work day - Logbook header"
     driver = models.ForeignKey(Driver, on_delete=models.CASCADE, related_name='log_days')
