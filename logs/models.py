@@ -5,11 +5,13 @@ from datetime import timedelta
 
 
 class Driver(models.Model):
-    """Driver profile linked to Django User"""
+    "Driver profile linked to Django User"
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='driver_profile')
     driver_number = models.CharField(max_length=20, unique=True, verbose_name="Driver ID")
     home_terminal = models.CharField(max_length=100, verbose_name="Home Terminal")
     truck_license = models.CharField(max_length=20, verbose_name="Truck License Plate")
+    uses_70hour_8day = models.BooleanField(default=True, help_text="True=70h/8d, False=60h/7d")
+
 
     class Meta:
         verbose_name = "Driver"
@@ -18,9 +20,8 @@ class Driver(models.Model):
     def __str__(self):
         return f"{self.user.get_full_name()} ({self.driver_number})"
 
-
 class LogDay(models.Model):
-    """Work day - Logbook header"""
+    "Work day - Logbook header"
     driver = models.ForeignKey(Driver, on_delete=models.CASCADE, related_name='log_days')
     date = models.DateField(verbose_name="Date")
 
@@ -95,13 +96,12 @@ class DutySegment(models.Model):
 
     @property
     def duration_hours(self):
-        """Duration in hours (decimal)"""
         delta = self.end_time - self.start_time
         return round(delta.total_seconds() / 3600, 2)
 
     @property
     def is_valid_quarter_hour(self):
-        """Check if minutes are 00, 15, 30, or 45"""
+        """Check minutes 00, 15, 30, or 45"""
         for dt in [self.start_time, self.end_time]:
             if dt.minute % 15 != 0:
                 return False
@@ -109,7 +109,7 @@ class DutySegment(models.Model):
 
     @property
     def remarks_display(self):
-        """Generate Remarks text in FMCSA format"""
+
         return f"{self.location_city}, {self.location_state}"
 
     def clean(self):
