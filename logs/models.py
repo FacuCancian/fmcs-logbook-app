@@ -5,13 +5,10 @@ from datetime import timedelta
 
 
 class Driver(models.Model):
-    "Driver profile linked to Django User"
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='driver_profile')
     driver_number = models.CharField(max_length=20, unique=True, verbose_name="Driver ID")
     home_terminal = models.CharField(max_length=100, verbose_name="Home Terminal")
     truck_license = models.CharField(max_length=20, verbose_name="Truck License Plate")
-    uses_70hour_8day = models.BooleanField(default=True, help_text="True=70h/8d, False=60h/7d")
-
 
     class Meta:
         verbose_name = "Driver"
@@ -20,8 +17,8 @@ class Driver(models.Model):
     def __str__(self):
         return f"{self.user.get_full_name()} ({self.driver_number})"
 
+
 class LogDay(models.Model):
-    "Work day - Logbook header"
     driver = models.ForeignKey(Driver, on_delete=models.CASCADE, related_name='log_days')
     date = models.DateField(verbose_name="Date")
 
@@ -101,7 +98,6 @@ class DutySegment(models.Model):
 
     @property
     def is_valid_quarter_hour(self):
-        """Check minutes 00, 15, 30, or 45"""
         for dt in [self.start_time, self.end_time]:
             if dt.minute % 15 != 0:
                 return False
@@ -109,19 +105,21 @@ class DutySegment(models.Model):
 
     @property
     def remarks_display(self):
-
         return f"{self.location_city}, {self.location_state}"
 
     def clean(self):
-        """Validations before saving"""
         if self.end_time <= self.start_time:
-            raise ValidationError("End time must be after start time")
+          raise ValidationError("End time must be after start time.")
 
+        # Validate no midnight crossing (except Off Duty y Sleeper Berth)
         if self.start_time.date() != self.end_time.date():
-            raise ValidationError("Segments cannot cross midnight. Split into two.")
+          if self.status in ['D', 'ON']:
+              raise ValidationError(
+                  "Driving and On-duty cannot cross midnight. Split into two segments."
+              )
 
         if not self.is_valid_quarter_hour:
-            raise ValidationError("Times must be in 15-minute increments (00, 15, 30, 45)")
+          raise ValidationError("Times must be in 15-minute increments (00, 15, 30, 45)")
 
     def save(self, *args, **kwargs):
         self.clean()
