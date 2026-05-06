@@ -109,7 +109,12 @@ class DutySegmentSerializer(serializers.ModelSerializer):
                     )
 
         return data
+    def _validate_weekly_limit(self, driver, log_day, current_date, status, duration):
+        "weekly on-duty limit"
+        days_to_check = 7 if not driver.uses_70hour_8day else 8
+        weekly_limit = 60 if not driver.uses_70hour_8day else 70
 
+        start_date = current_date - timedelta(days=days_to_check - 1)
 
 class LogDaySerializer(serializers.ModelSerializer):
     segments = DutySegmentSerializer(many=True, read_only=True)
