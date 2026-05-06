@@ -21,3 +21,7 @@ local_settings.py
 .idea/
 .vscode/
 *.swp
+
+node_modules/
+dist/
+.vite/
