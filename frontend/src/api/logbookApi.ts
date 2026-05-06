@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const API_URL = 'http://127.0.0.1:8000/api/'
+const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api/'
 
 const api = axios.create({
   baseURL: API_URL,
@@ -8,18 +8,22 @@ const api = axios.create({
     'Content-Type': 'application/json',
   }
 })
+
 export const deleteSegment = async (id: number) => {
   await api.delete(`/segments/${id}/`)
 }
+
 export const fetchSegments = async (logDayId?: number) => {
   const url = logDayId ? `/segments/?log_day_id=${logDayId}` : '/segments/'
   const response = await api.get(url)
   return response.data
 }
+
 export const createSegment = async (segmentData: any) => {
   const response = await api.post('/segments/', segmentData)
   return response.data
 }
+
 export const getOrCreateLogDay = async (driverId: number, date: string) => {
   const response = await api.get(`/logdays/?driver_id=${driverId}&date=${date}`)
   if (response.data.length > 0) {
