@@ -9,8 +9,6 @@ class Driver(models.Model):
     driver_number = models.CharField(max_length=20, unique=True, verbose_name="Driver ID")
     home_terminal = models.CharField(max_length=100, verbose_name="Home Terminal")
     truck_license = models.CharField(max_length=20, verbose_name="Truck License Plate")
-    uses_70hour_8day = models.BooleanField(default=True, help_text="True=70h/8d, False=60h/7d")
-
 
     class Meta:
         verbose_name = "Driver"
@@ -18,6 +16,7 @@ class Driver(models.Model):
 
     def __str__(self):
         return f"{self.user.get_full_name()} ({self.driver_number})"
+
 
 class LogDay(models.Model):
     driver = models.ForeignKey(Driver, on_delete=models.CASCADE, related_name='log_days')
